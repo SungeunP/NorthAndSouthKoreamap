@@ -36,30 +36,10 @@
     
 	var active = d3.select(null);	// Select event 전
 	var locations = []; // path object array for d3.line
-    var mapJSONdata = "";
-    $.ajax({
-		url : 'Topojson/NorthAndSouthKorea.json',
-        dataType : 'text',
-		async : false
-	}).done(ajaxDone);
+    var mapJSONdata = null;
 
-
-	//ajax로딩 완료시 해당 함수 실행
-	function ajaxDone(data) {
-        mapJSONdata = JSON.parse(data);
-	}
-	
 	// path json 데이터
-	var pathJSONdata = {"children": [
-	{"name": "서울" , "lat": 37.554971 , "lng": 127.0 , "lift": 1.000},
-	{"name": "원주" , "lat": 37.305543 , "lng": 127.923528 , "lift": 0.620},
-	{"name": "부산" , "lat": 35.167212 , "lng": 129.041370 , "lift": 0.616},
-	{"name": "강릉" , "lat": 37.715751 , "lng": 128.853244 , "lift": 0.584},
-	{"name": "속초" , "lat": 38.182656 , "lng": 128.548564 , "lift": 0.323},
-	{"name": "혜산" , "lat": 41.378850 , "lng": 128.175048 , "lift": 0.249},
-	{"name": "신의주" , "lat": 40.079181 , "lng": 124.448642 , "lift": 0.200},
-	{"name": "평양" , "lat": 39.033153 , "lng": 125.764146 , "lift": 0.191}
-	]};
+	var pathJSONdata = null;
 	
 	// Create svg tag and settings , svg태그 생성 및 세팅
 	var svg = d3.select("body").append("svg")
@@ -92,24 +72,6 @@
 	var g = svg.append("g"); // create data area , 데이터 구역 생성 (map)
 
 	svg.call(zoom); // apply double click zoom , 더블클릭 줌 적용
-	
-	
-	// JSON data setting , JSON 데이터 세팅
-	var list = pathJSONdata.children;
-	var listLength = list.length;
-			
-	// path객체 배열 생성
-	for(var count = 0 ; count < listLength - 1 ; count++){
-		if(list[count + 1] == undefined){
-			locations.push([ { lat : list[count-1].lat , lng : list[count-1].lng , name : list[count-1].name , lift : list[count-1].lift }
-			, { lat : list[count].lat , lng : list[count].lng , name : list[count].name , lift : list[count].lift } ]);
-			break;
-		}else{
-			locations.push([ {lat : list[count].lat , lng : list[count].lng , name : list[count].name , lift : list[count].lift } 
-			, { lat : list[count+1].lat , lng : list[count+1].lng , name : list[count+1].name , lift : list[count+1].lift } ]);
-		}
-	}
-	console.log(locations);
 	
 	
 	// Click Zoom function , 클릭 줌 함수 
@@ -153,38 +115,91 @@
 	// function stopped() {
 		// if (d3.event.defaultPrevented) d3.event.stopPropagation();
 	// }
-	
-	
-	// 시, 도 생성
-  	g.attr("class", "states")
-  		.selectAll("path")
-  		.data(topojson.feature(mapJSONdata, mapJSONdata.objects.Korea).features) // topojson 형식
-  		.enter().append("path")
-  		.attr("d", path)
-  		.attr("class","feature")
-  		.on("click",clicked);
-	
-	// 시, 도 간의 border 생성
-	g.append("path")
-		.attr("class", "state-borders")
-		.attr("d", path(topojson.mesh(mapJSONdata, mapJSONdata.objects.Korea, function(a, b) { return a !== b; })));
-		
-	// path 생성자
-	var pathLine = d3.line()
-	   	.x(function(d){ return projection([d.lng,d.lat])[0]; })
-	   	.y(function(d){ return projection([d.lng,d.lat])[1]; });
-		
-	for(var i = 0; i < locations.length ; i++){
-		// locations의 Line 생성
+
+	function drawMapJSONdata(pathJSON,mapJSON) {
+			// JSON data setting , JSON 데이터 세팅
+			console.log("drawMapJSONdata");
+			console.log(mapJSON);
+			console.log(pathJSON);
+		var list = pathJSON.children;
+		console.log(list);
+		var listLength = list.length;
+			
+		// path객체 배열 생성
+		for(var count = 0 ; count < listLength - 1 ; count++){
+			if(list[count + 1] == undefined){
+				locations.push([ { lat : list[count-1].lat , lng : list[count-1].lng , name : list[count-1].name , lift : list[count-1].lift }
+				, { lat : list[count].lat , lng : list[count].lng , name : list[count].name , lift : list[count].lift } ]);
+				break;
+			}else{
+				locations.push([ {lat : list[count].lat , lng : list[count].lng , name : list[count].name , lift : list[count].lift } 
+				, { lat : list[count+1].lat , lng : list[count+1].lng , name : list[count+1].name , lift : list[count+1].lift } ]);
+			}
+		}
+
+		// 시, 도 생성
+		g.attr("class", "states")
+			.selectAll("path")
+			.data(topojson.feature(mapJSON, mapJSON.objects.Korea).features) // topojson 형식
+			.enter().append("path")
+			.attr("d", path)
+			.attr("class", "feature")
+			.on("click", clicked);
+
+		// 시, 도 간의 border 생성
 		g.append("path")
-		 .attr("d",pathLine(locations[i]))
-	     .attr("class","path"+i)
-		 .attr("stroke-width",6)
-		 .attr("xlink:href","test")
-		 .attr("style","fill: none;" + 
-  				 "stroke-opacity:" + locations[i][0].lift + ";" +
-  				 "stroke: #f44;");
+			.attr("class", "state-borders")
+			.attr("d", path(topojson.mesh(mapJSON, mapJSON.objects.Korea, function (a, b) { return a !== b; })));
+
+		// path 생성자
+		var pathLine = d3.line()
+			.x(function (d) { return projection([d.lng, d.lat])[0]; })
+			.y(function (d) { return projection([d.lng, d.lat])[1]; });
+
+		for (var i = 0; i < locations.length; i++) {
+			// locations의 Line 생성
+			g.append("path")
+				.attr("d", pathLine(locations[i]))
+				.attr("class", "path" + i)
+				.attr("stroke-width", 6)
+				.attr("xlink:href", "test")
+				.attr("style", "fill: none;" +
+					"stroke-opacity:" + locations[i][0].lift + ";" +
+					"stroke: #f44;");
+		}
 	}
+
+	var jsonPath = ['Topojson/NorthAndSouthKorea.json','path.json'];
+
+	var _promise = function(filePathArray){
+		return new Promise(function (resolve, reject){
+			var ajaxResult = new Array();
+			for(var i = 0 ; i < filePathArray.length ; i++){
+				$.ajax({
+				url : './json/' + filePathArray[i],
+				dataType : 'text'
+				}
+				).done(function(text){
+					ajaxResult.push(text);
+					if(ajaxResult.length == filePathArray.length){
+						resolve(ajaxResult);
+					}
+				});
+			}
+		});
+	}
+
+	_promise(jsonPath) // json 파일 비동기 처리
+	.then(function(jsonArray){
+		mapJSONdata = JSON.parse(jsonArray[0]);
+		pathJSONdata = JSON.parse(jsonArray[1]);
+		console.log(mapJSONdata);
+		console.log(pathJSONdata);
+		drawMapJSONdata(mapJSONdata,pathJSONdata);
+	},
+	function (error){
+		console.error(error);
+	});
 	
 </script>
 </html>
