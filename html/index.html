@@ -1,0 +1,190 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta charset="EUC-KR">
+<title>Map of Korea use D3</title>
+<link rel="stylesheet" type="text/css" href="./css/D3MapStyle.css">
+<script src="https://d3js.org/d3.v4.js" ></script>
+<script src="./js/topojson.v2.min.js" ></script>
+<script src="./js/jquery-3.2.1.min.js" ></script>
+<script src="./js/json2.js" ></script>
+</head>
+<body>
+<h4>기능 : 마우스드래그 이동 / 휠 확대 / 시, 도 를 기준으로 한 확대기능 / 마우스 휠 확대 </h4>
+</body>
+<script>
+
+	// 설정 객체 setting object
+	var Settings = {
+		style : {
+			width : 800,
+			height : 620,
+			svgBackgroundColor : "#7FD4FF",
+		},
+		zoom : {
+			minZoomScale : 1,
+			maxZoomScale : 8,
+			zoomScale : 0.65,
+			zoomMS : 800,
+		},
+		projection : {
+			latitude : 38.3,
+			longitude : 127.5,
+			scale : 2700,
+		}
+    }
+    
+	var active = d3.select(null);	// Select event 전
+	var locations = []; // path object array for d3.line
+    var mapJSONdata = "";
+    $.ajax({
+		url : 'Topojson/NorthAndSouthKorea.json',
+        dataType : 'text',
+		async : false
+	}).done(ajaxDone);
+
+
+	//ajax로딩 완료시 해당 함수 실행
+	function ajaxDone(data) {
+        mapJSONdata = JSON.parse(data);
+	}
+	
+	// path json 데이터
+	var pathJSONdata = {"children": [
+	{"name": "서울" , "lat": 37.554971 , "lng": 127.0 , "lift": 1.000},
+	{"name": "원주" , "lat": 37.305543 , "lng": 127.923528 , "lift": 0.620},
+	{"name": "부산" , "lat": 35.167212 , "lng": 129.041370 , "lift": 0.616},
+	{"name": "강릉" , "lat": 37.715751 , "lng": 128.853244 , "lift": 0.584},
+	{"name": "속초" , "lat": 38.182656 , "lng": 128.548564 , "lift": 0.323},
+	{"name": "혜산" , "lat": 41.378850 , "lng": 128.175048 , "lift": 0.249},
+	{"name": "신의주" , "lat": 40.079181 , "lng": 124.448642 , "lift": 0.200},
+	{"name": "평양" , "lat": 39.033153 , "lng": 125.764146 , "lift": 0.191}
+	]};
+	
+	// Create svg tag and settings , svg태그 생성 및 세팅
+	var svg = d3.select("body").append("svg")
+			.attr("width",Settings.style.width)
+			.attr("height",Settings.style.height)
+			.style("background-color",Settings.style.svgBackgroundColor);
+	
+	
+	// Non-zoom event area ( Initialize zoom on click ) , 줌 이벤트가 없는 지역 ( 클릭 시 줌 초기화 )
+	svg.append("rect")
+ 			.attr("class","background")
+ 			.attr("width",Settings.style.width)
+ 			.attr("height",Settings.style.height)
+ 			.on("click",reset); // clicked event 
+ 			
+			
+	// Setting doubleclick zoom , 더블클릭 줌 설정
+	var zoom = d3.zoom()
+	    .scaleExtent([Settings.zoom.minZoomScale, Settings.zoom.maxZoomScale]) // 최소, 최대 확대 스케일 설정
+	    .on("zoom", zoomed);
+		
+		
+	// Setting projection , 투영 설정
+	var projection = d3.geoMercator()
+			.center([Settings.projection.longitude,Settings.projection.latitude]) // use lng,lat for each countries , 각 국에 맞는 위도,경도 사용
+			.scale(Settings.projection.scale)
+			.translate([Settings.style.width/2, Settings.style.height/2]);
+ 
+ 	var path = d3.geoPath().projection(projection);  // apply projection , 투영 적용
+	var g = svg.append("g"); // create data area , 데이터 구역 생성 (map)
+
+	svg.call(zoom); // apply double click zoom , 더블클릭 줌 적용
+	
+	
+	// JSON data setting , JSON 데이터 세팅
+	var list = pathJSONdata.children;
+	var listLength = list.length;
+			
+	// path객체 배열 생성
+	for(var count = 0 ; count < listLength - 1 ; count++){
+		if(list[count + 1] == undefined){
+			locations.push([ { lat : list[count-1].lat , lng : list[count-1].lng , name : list[count-1].name , lift : list[count-1].lift }
+			, { lat : list[count].lat , lng : list[count].lng , name : list[count].name , lift : list[count].lift } ]);
+			break;
+		}else{
+			locations.push([ {lat : list[count].lat , lng : list[count].lng , name : list[count].name , lift : list[count].lift } 
+			, { lat : list[count+1].lat , lng : list[count+1].lng , name : list[count+1].name , lift : list[count+1].lift } ]);
+		}
+	}
+	console.log(locations);
+	
+	
+	// Click Zoom function , 클릭 줌 함수 
+	function clicked(d) {
+		if (active.node() === this) return reset();
+		active.classed("active", false);
+		active = d3.select(this).classed("active", true);
+		var bounds = path.bounds(d),
+		    dx = bounds[1][0] - bounds[0][0],
+		    dy = bounds[1][1] - bounds[0][1],
+		    x = (bounds[0][0] + bounds[1][0]) / 2,
+		    y = (bounds[0][1] + bounds[1][1]) / 2,
+		    scale = Math.max(1, Math.min(8, Settings.zoom.zoomScale / Math.max(dx / Settings.style.width, dy / Settings.style.height))),
+		    translate = [Settings.style.width / 2 - scale * x, Settings.style.height / 2 - scale * y];
+
+		svg.transition()
+		    .duration(Settings.zoom.zoomMS) // 확대 속도 (ms)
+		    .call( zoom.transform, d3.zoomIdentity.translate(translate[0],translate[1]).scale(scale) );
+	}
+	
+	
+	// Zoom reset , 줌 초기화
+	function reset() {
+		active.classed("active", false);
+		active = d3.select(null);
+
+		svg.transition()
+			.duration(Settings.zoom.zoomMS)
+			.call( zoom.transform, d3.zoomIdentity );
+	}
+		
+		
+	// Double click zoom , 더블클릭 줌
+	function zoomed() {
+		g.style("stroke-width", 1.5 / d3.event.transform.k + "px");
+		g.attr("transform", d3.event.transform);
+	}
+		
+		
+	// // 이벤트 버블링 방지
+	// function stopped() {
+		// if (d3.event.defaultPrevented) d3.event.stopPropagation();
+	// }
+	
+	
+	// 시, 도 생성
+  	g.attr("class", "states")
+  		.selectAll("path")
+  		.data(topojson.feature(mapJSONdata, mapJSONdata.objects.Korea).features) // topojson 형식
+  		.enter().append("path")
+  		.attr("d", path)
+  		.attr("class","feature")
+  		.on("click",clicked);
+	
+	// 시, 도 간의 border 생성
+	g.append("path")
+		.attr("class", "state-borders")
+		.attr("d", path(topojson.mesh(mapJSONdata, mapJSONdata.objects.Korea, function(a, b) { return a !== b; })));
+		
+	// path 생성자
+	var pathLine = d3.line()
+	   	.x(function(d){ return projection([d.lng,d.lat])[0]; })
+	   	.y(function(d){ return projection([d.lng,d.lat])[1]; });
+		
+	for(var i = 0; i < locations.length ; i++){
+		// locations의 Line 생성
+		g.append("path")
+		 .attr("d",pathLine(locations[i]))
+	     .attr("class","path"+i)
+		 .attr("stroke-width",6)
+		 .attr("xlink:href","test")
+		 .attr("style","fill: none;" + 
+  				 "stroke-opacity:" + locations[i][0].lift + ";" +
+  				 "stroke: #f44;");
+	}
+	
+</script>
+</html>

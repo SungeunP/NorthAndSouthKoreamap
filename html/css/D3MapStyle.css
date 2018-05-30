@@ -1,0 +1,45 @@
+@charset "EUC-KR";
+svg {
+	border : 2px solid black;
+}
+
+.background {
+  fill: none;
+  pointer-events: all;
+}
+
+.feature {
+  fill: #D0F5A9;
+  cursor: pointer;
+  stroke-width : 0.5px;
+}
+
+.feature.active {
+	fill : orange;
+}
+
+.mesh {
+  fill: none;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+
+
+.states{
+stroke:black;
+stroke-width:.5px;
+}
+
+.state-borders{
+fill : none;
+stroke: black;
+stroke-width:.5px;
+}
+
+svg g .path {
+  fill: none;
+  stroke-opacity:0.5;
+  stroke: #f44;
+}
